@@ -3449,3 +3449,44 @@ presubmits:
               limits:
                 cpu: 4
                 memory: 6Gi
+    - name: pull-kubernetes-e2e-kind-mutable-container-probes
+      cluster: k8s-infra-prow-build
+      optional: true
+      always_run: false
+      decorate: true
+      skip_branches:
+      - release-\d+\.\d+ # per-release settings
+      labels:
+        preset-dind-enabled: "true"
+      decoration_config:
+        timeout: 2h20m
+        grace_period: 15m
+      path_alias: k8s.io/kubernetes
+      spec:
+        containers:
+        - image: gcr.io/k8s-staging-test-infra/krte:v20261102-7f9e993948-master
+          command:
+          - wrapper.sh
+          - bash
+          - -c
+          - curl -sfSLO https://raw.githubusercontent.com/kubernetes/test-infra/refs/heads/master/hack/ci/test-infra-e2e-k8s.sh && chmod u+x test-infra-e2e-k8s.sh && curl -sSL https://kind.sigs.k8s.io/dl/latest/linux-amd64.tgz | tar xvfz - -C "${PATH%%:*}/" && ./test-infra-e2e-k8s.sh
+          env:
+          # MutableContainerProbes depends on ContainerScopedProbes.
+          - name: FEATURE_GATES
+            value: '{"ContainerScopedProbes":true,"MutableContainerProbes":true,"ChangeContainerStatusOnKubeletRestart":false}'
+          - name: FOCUS
+            value: '\[FeatureGate:MutableContainerProbes\]'
+          # we need privileged mode in order to do docker in docker
+          securityContext:
+            privileged: true
+          resources:
+            limits:
+              cpu: 4
+              memory: 9Gi
+            requests:
+              cpu: 4
+              memory: 9Gi
+      annotations:
+        testgrid-dashboards: sig-node-presubmits
+        testgrid-tab-name: pr-kind-mutable-container-probes
+        description: Runs mutable container probe e2e tests with Kind.
